@@ -11,7 +11,8 @@ file { "/etc/mysql/conf.d/allow_external.cnf":
   owner => mysql,
   group => mysql,
   mode => 0644,
-  content => template("manifests/allow_ext.cnf"),
+  #source  => 'puppet:///manifests/allow_ext.cnf',
+  content => "[mysqld]\n bind-address = 0.0.0.0",
   require => Package["mysql-server"],
   notify => Service["mysql"],
 }
@@ -23,6 +24,33 @@ service { "mysql":
   hasrestart => true,
   require => Package["mysql-server"],
 }
+
+exec { "loja-schema":
+  unless => "mysql -uroot loja_schema",
+  command => "mysqladmin -uroot create loja_schema",
+  path => "/usr/bin/",
+  require => Service["mysql"],
+}
+
+exec { "remove-anonymous-user":
+  command => "mysql -uroot -e \"DELETE FROM mysql.user \
+                                WHERE user='' \
+                                FLUSH PRIVILEGES\"",
+  onlyif => "mysql -u' '",
+  path => "/usr/bin",
+  require => Service["mysql"],
+}
+
+exec { "loja-user":
+  unless => "mysql -uloja -plojasecret loja_schema",
+  command => "mysql -uroot -e \" CREATE USER 'loja'@'%' IDENTIFIED BY 'lojasecret';
+                                GRANT ALL PRIVILEGES ON loja_schema.* TO 'loja'@'%';\"",
+  path => "/usr/bin/",
+  require => Exec["loja-schema"],
+}
+
+
+
 
 
 
