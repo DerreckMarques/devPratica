@@ -1,4 +1,4 @@
-class mysql-server {
+class mysql::server {
     exec { "apt-update":
     command =>  "/usr/bin/apt-get update"
   }
@@ -12,7 +12,8 @@ class mysql-server {
     owner   =>  mysql,
     group   =>  mysql,
     mode    =>  0644,
-    source  =>  "/vagrant/manifests/allow_ext.cnf",
+    content  =>  template"mysql/allow_ext.cnf",
+    #source  =>  "/vagrant/manifests/allow_ext.cnf",
     #content => "[mysqld]\n bind-address = 0.0.0.0",
     require =>  Package["mysql-server"],
     notify  =>  Service["mysql"],
@@ -35,40 +36,3 @@ class mysql-server {
     require => Service["mysql"],
   }
 }
-
-define mysql-db($schema, $user=$title, $password){
-  Class['mysql-server'] -> Mysql-db[$title]
-
-  exec { "$title-schema":
-    unless  =>  "mysql -uroot $schema",
-    command =>  "mysqladmin -uroot create $schema",
-    path    =>  "/usr/bin/",
-  }
-
-  exec { "$title-user":
-    unless  =>  "mysql -u$user -p$password $schema",
-    command =>  "mysql -uroot -e \" CREATE USER '$user'@'%' IDENTIFIED BY '$password';
-                                  GRANT ALL PRIVILEGES ON $schema.* TO '$user'@'%';\"",
-    path    =>  "/usr/bin/",
-    require =>  Exec["$title-schema"],
-  }
-}
-
-include mysql-server
-
-mysql-db {"loja":
-  schema    =>  "loja_schema",
-  password  =>  "lojasecret",
-}
-
-
-
-
-
-
-
-
-
-
-
-
